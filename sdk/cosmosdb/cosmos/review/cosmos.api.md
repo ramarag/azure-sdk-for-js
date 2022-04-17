@@ -395,7 +395,7 @@ export const Constants: {
         IsBatchRequest: string;
         IsBatchAtomic: string;
         BatchContinueOnError: string;
-        dedicatedGatewayPerRequestCacheStaleness: string;
+        DedicatedGatewayPerRequestCacheStaleness: string;
         ForceRefresh: string;
     };
     WritableLocations: string;

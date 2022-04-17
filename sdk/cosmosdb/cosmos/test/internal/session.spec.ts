@@ -127,13 +127,54 @@ describe.skip("Session Token", function (this: Suite) {
     assert.ok(resource);
     assert.strictEqual(statusCode, 200);
   });
-});
 
-async function createItem(container: Container) {
-  const {
-    resource: { id },
-  } = await container.items.create({
-    id: (Math.random() + 1).toString(36).substring(7),
+  describe("Integrated Cache Staleness", function (this: Suite) {
+    beforeEach(async function () {
+      await removeAllDatabases();
+
+      it("Should check if the max integrated cache staleness header is set and the value is correct.", async function () {
+        const dbId = addEntropy("maxIntegratedCacheTestDB");
+        const containerId = addEntropy("maxIntegratedCacheTestContainer");
+        const dedicatedGatewayMaxAge = 0;
+        const client = new CosmosClient({
+          endpoint,
+          key: masterKey,
+          consistencyLevel: ConsistencyLevel.Eventual,
+          plugins: [
+            {
+              on: "request",
+              plugin: async (context, next) => {
+                if (context.headers["x-ms-dedicatedgateway-max-age"]) {
+                  assert.strictEqual(
+                    context.headers["x-ms-dedicatedgateway-max-age"].valueOf(),
+                    dedicatedGatewayMaxAge
+                  );
+                }
+                const response = await next(context);
+                return response;
+              },
+            },
+          ],
+        });
+
+        const { database } = await client.databases.createIfNotExists({
+          id: dbId,
+        });
+        const { container } = await database.containers.createIfNotExists({
+          id: containerId,
+        });
+
+        await container.read({ maxIntegratedCacheStaleness: dedicatedGatewayMaxAge });
+      });
+    });
   });
-  return id;
-}
+
+  async function createItem(container: Container) {
+    const {
+      resource: { id },
+    } = await container.items.create({
+      id: (Math.random() + 1).toString(36).substring(7),
+    });
+    return id;
+  }
+});
